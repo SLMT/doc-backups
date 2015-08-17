@@ -35,7 +35,7 @@ char Name[12] = "Mr. Buffer";
 int num = 2;
 ```
 
-<div style="text-align: center; font-weight: bold;">
+<div>
 <img src="images/image001.png" /><br />
 Figure 1: Illustration of how a buffer been allocated in memory.
 </div><br />
@@ -50,19 +50,19 @@ For example, if an access violation occurs in the running process, it may lead t
 
 <table>
 	<tr>
-		<th style="text-align: center">Overflow type</th>
-		<th style="text-align: center">Description</th>
+		<th>Overflow type</th>
+		<th>Description</th>
 	</tr>
 	<tr>
-		<td style="text-align: center">Stack overflow</td>
+		<td>Stack overflow</td>
 		<td>A static buffer overflow occurs when a buffer, which has been declared on the stack normally during the function call, is written to with more data than it was allocated to hold. The less apparent versions of this error occur when unverified or untrusted user input data is copied directly to a static variable, causing potential stack corruption.  This is the most common type of buffer overflow and exploit whether local or remote type.</td>
 	</tr>
 	<tr>
-		<td style="text-align: center">Heap overflow</td>
+		<td>Heap overflow</td>
 		<td>Heap overflows, like stack overflows, can lead to memory and stack corruption. Because heap overflows occur in heap memory area rather than on the stack, it can be more difficult to be exploited; nevertheless, heap overflows require real programming care and are just as able to allow system risks as static buffer overflow.</td>
 	</tr>
 	<tr>
-		<td style="text-align: center">Array indexing errors</td>
+		<td>Array indexing errors</td>
 		<td>Array indexing errors also are a source of memory overflows. Another form of unchecked index is a signed/unsigned integer mismatch where a negative number was supplied to an array index.  Simply verifying that the index is less than the size of the array is not enough if the index is a signed integer.  Some also refer this as an **integer overflow**.</td>
 	</tr>
 </table>
@@ -122,14 +122,14 @@ int main(int argc, char *argv[])
 
 The output, when the input is: 12345678 (8 bytes), the program run smoothly.
 
-<div style="text-align: center; font-weight: bold;">
+<div>
 <img src="images/image002.png" /><br />
 Figure 2: A sample of a vulnerable program output.
 </div><br />
 
 When the input is: 123456789 (9 bytes), the following will be displayed when compiled with Microsoft Visual C++ 6.0.  In Linux the “Segmentation fault” message will be displayed and the program terminates.
 
-<div style="text-align: center; font-weight: bold;">
+<div>
 <img src="images/image003.png" /><br />
 Figure 3: Error message box, an indication of a system trying to write beyond the allocated buffer.
 </div><br />
