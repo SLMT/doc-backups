@@ -35,10 +35,8 @@ char Name[12] = "Mr. Buffer";
 int num = 2;
 ```
 
-<div>
 <img src="images/image001.png" /><br />
 Figure 1: Illustration of how a buffer been allocated in memory.
-</div><br />
 
 If such an action takes place in memory addresses higher than the allocated buffer, it is called a buffer overflow. A similar problem exists when writing to a buffer in memory addresses below the allocated buffer. In this case, it is called a buffer underflow.  A buffer overflow that injects code into a running process is referred to as an exploitable buffer overflow.
 
@@ -122,17 +120,13 @@ int main(int argc, char *argv[])
 
 The output, when the input is: 12345678 (8 bytes), the program run smoothly.
 
-<div>
 <img src="images/image002.png" /><br />
 Figure 2: A sample of a vulnerable program output.
-</div><br />
 
 When the input is: 123456789 (9 bytes), the following will be displayed when compiled with Microsoft Visual C++ 6.0.  In Linux the “Segmentation fault” message will be displayed and the program terminates.
 
-<div>
 <img src="images/image003.png" /><br />
 Figure 3: Error message box, an indication of a system trying to write beyond the allocated buffer.
-</div><br />
 
 The vulnerability exists because the mybuffer could be overflowed if the user input (argv[1]) bigger than 8 bytes. Why 8 bytes?  For 32 bit (4 bytes) system, we must fill up a double word (32 bits) memory.  Character (char) size is 1 byte, so if we request buffer with 5 bytes, the system will allocate 2 double words (8 bytes).  That is why when you input more than 8 bytes; the mybuffer will be over flowed
 

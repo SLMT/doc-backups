@@ -7,7 +7,7 @@
 ## 目錄
 
 1. [An Introduction](1_an_introduction.md)
-2. Basic of x86 Architecture
+2. [Basic of x86 Architecture](2_basic_of_x86.md)
 3. Assembly Language
 4. Compiler, Assembler & Linker
 5. Function Operation
