@@ -8,7 +8,7 @@
 
 1. [An Introduction](1_an_introduction.md)
 2. [Basic of x86 Architecture](2_basic_of_x86.md)
-3. [Assembly Language][3_assembly_language.md]
+3. [Assembly Language](3_assembly_language.md)
 4. Compiler, Assembler & Linker
 5. Function Operation
 6. Stack
