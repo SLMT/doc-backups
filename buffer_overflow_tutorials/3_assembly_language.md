@@ -408,7 +408,7 @@ void display(int y, int *yptr)
 [bodo@bakawali test]$ readelf -a testprog1.o
 ```
 
-```asm
+```
 ELF Header:
     Magic:   7f 45 4c 46 01 01 01 00 00 00 00 00 00 00 00 00
     Class:                                 ELF32
