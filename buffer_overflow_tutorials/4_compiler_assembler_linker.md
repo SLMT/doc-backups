@@ -105,3 +105,157 @@ Figure 3: Simplified object file format: linking view and execution view.
 Keep in mind that the full format of the ELF contains many more items. As explained previously, the linking view, which is used when the program or library is linked, deals with sections within an object file. Sections contain the bulk of the object file information: data, instructions, relocation information, symbols, debugging information, etc. The execution view, which is used when the program runs, deals with segments. Segments are a way of grouping related sections.
 
 For example, the text segment groups executable code, the data segment groups the program data, and the dynamic segment groups information relevant to dynamic loading. Each segment consists of one or more sections. A process image is created by loading and interpreting segments. The operating system logically copies a file’s segment to a virtual memory segment according to the information provided in the program header table. The OS can also use segments to create a shared memory resource. At link time, the program or library is built by merging together sections with similar attributes into segments. Typically, all the executable and read-only data sections are combined into a single text segment, while the data and BSS are combined into the data segment. These segments are normally called load segments, because they need to be loaded in memory at process creation. Other sections such as symbol information and debugging sections are merged into other, non-load segments.
+
+## Process loading
+
+In Linux processes loaded from a file system (using either the execve() or spawn() system calls) are in ELF format. If the file system is on a block-oriented device, the code and data are loaded into main memory. If the file system is memory mapped (e.g. ROM/Flash image), the code needn't be loaded into RAM, but may be executed in place. This approach makes all RAM available for data and stack, leaving the code in ROM or Flash. In all cases, if the same process is loaded more than once, its code will be shared. Before we can run an executable, firstly we have to load it into memory. This is done by the **loader**, which is generally part of the operating system. The loader does the following things:
+
+1. Memory and access validation.
+
+    Firstly, the OS system kernel reads in the program file’s header information and does the validation for type, access permissions and right, memory requirement and its ability to run its instructions. It confirms that file is an executable image and calculates memory requirements.
+
+2. Process setup, includes:
+
+    a. Allocates primary memory for the program's execution.
+
+    b. Copies address space from secondary to primary memory.
+
+    c. Copies the .text and .data sections from the executable into primary memory.
+
+    d. Copies program arguments (e.g., command line arguments) onto the stack.
+
+    e. Initializes registers: sets the esp to point to top of stack, clears the rest.
+
+    f. Jumps to start routine, which: copies main()'s arguments off of the stack, and jumps to main().
+
+Address space is memory space that contains program code, stack, and data segments or in other word, all data the program uses as it runs. The memory layout, typically consists of three segments (text, data, and stack), in simplified form is shown in Figure 4. The dynamic data segment is also referred to as the **heap**, the place dynamically allocated memory (such as from malloc() and new) comes from. Dynamically allocated memory is memory allocated at **run time** instead of **compile/link time**.  This organization enables any division of the dynamically allocated memory between the heap (explicitly) and the stack (implicitly). This explains why the stack grows downward and heap grows upward.
+
+<img src="images/image021.png" /><br />
+Figure 4: Memory layout for a process.
+
+## The Runtime Data Structures
+
+A process is a running program. This means that the operating system has loaded the executable file for the program into memory, has arranged it to have access to its command-line arguments and environment variables, and has started it running.  Conceptually a process has five different areas of memory allocated to it as listed in Table 1 (refer to Figure 4):
+
+<table>
+    <tr>
+        <th>Area</th>
+        <th>Description</th>
+    </tr>
+    <tr>
+        <td>Code/text segment</td>
+        <td>Often referred to as the text segment, this is the area in which the executable instructions reside. For example, Linux/Unix arranges things so that multiple running instances of the same program share their code if possible. Only one copy of the instructions for the same program resides in memory at any time. The portion of the executable file containing the text segment is the text section.</td>
+    </tr>
+    <tr>
+        <td>Initialized data – data segment</td>
+        <td>Statically allocated and global data that are initialized with nonzero values live in the data segment. Each process running the same program has its own data segment. The portion of the executable file containing the data segment is the data section.</td>
+    </tr>
+    <tr>
+        <td>Uninitialized data – bss segment</td>
+        <td>BSS stands for ‘**Block Started by Symbol**’. Global and statically allocated data that initialized to zero by default are kept in what is called the BSS area of the process. Each process running the same program has its own BSS area. When running, the BSS data are placed in the data segment. In the executable file, they are stored in the BSS section. For Linux/Unix the format of an executable, only variables that are initialized to a nonzero value occupy space in the executable’s disk file.</td>
+    </tr>
+    <tr>
+        <td>Heap</td>
+        <td> The heap is where dynamic memory (obtained by malloc(), calloc(), realloc() and new – C++) comes from. Everything on a heap is **anonymous**, thus you can only access parts of it through a pointer. As memory is allocated on the heap, the process’s address space grows. Although it is possible to give memory back to the system and shrink a process’s address space, this is almost never done because it will be allocated to other process again. Freed memory (free() and delete) goes back to the heap, creating what is called **holes**.  It is typical for the heap to grow upward. This means that successive items that are added to the heap are added at addresses that are numerically greater than previous items. It is also typical for the heap to start immediately after the BSS area of the data segment. The end of the heap is marked by a pointer known as the **break**. You cannot reference past the break. You can, however, move the break pointer (via brk() and sbrk() system calls) to a new position to increase the amount of heap memory available.</td>
+    </tr>
+    <tr>
+        <td>Stack</td>
+        <td> The stack segment is where local (automatic) variables are allocated. In C program, local variables are all variables declared inside the opening left curly brace of a function body including the main() or other left curly brace that aren’t defined as static. The data is popped up or pushed into the stack following the **Last In First Out** (LIFO) rule. The stack holds local variables, temporary information/data, function parameters, return address and the like. When a function is called, a stack frame (or a procedure activation record) is created and PUSHed onto the top of the stack. This stack frame contains information such as the address from which the function was called and where to jump back to when the function is finished (return address), parameters, local variables, and any other information needed by the invoked function. The order of the information may vary by system and compiler. When a function returns, the stack frame is POPped from the stack. Typically the stack grows downward, meaning that items deeper in the call chain are at numerically lower addresses and toward the heap.</td>
+    </tr>
+</table>
+Table 1: Area of the executable image.
+
+When a program is running, the initialized data, BSS and heap areas are usually placed into a single contiguous area called a data segment. The stack segment and code/text segment are separate from the data segment and from each other as illustrated in Figure 4.
+
+Although it is theoretically possible for the stack and heap to grow into each other, the operating system prevents that event. The relationship among the different sections/segments is summarized in Table 2, executable program segments and their locations.
+
+<table>
+    <tr>
+        <th>Executable file section (disk file)</th>
+        <th>Address space segment</th>
+        <th>Program memory segment</th>
+    </tr>
+    <tr>
+        <td>.text</td>
+        <td>Text</td>
+        <td>Code</td>
+    </tr>
+    <tr>
+        <td>.data</td>
+        <td>Data</td>
+        <td>Initialized data</td>
+    </tr>
+    <tr>
+        <td>.bss</td>
+        <td>Data</td>
+        <td>BSS</td>
+    </tr>
+    <tr>
+        <td>-</td>
+        <td>Data</td>
+        <td>Heap</td>
+    </tr>
+    <tr>
+        <td>-</td>
+        <td>Stack</td>
+        <td>Stack</td>
+    </tr>
+</table>
+Table 2: Sections vs segments.
+
+## The Process
+
+The diagram below shows the memory layout of a typical C’s process. The process load segments (corresponding to "text" and "data" in the diagram) at the process's base address. The main stack is located just below and grows downwards. Any additional threads that are created will have their own stacks, located below the main stack. Each of the stack frames is separated by a guard page to detect stack overflows among stacks frame. The heap is located above the process and grows upwards.
+
+In the middle of the process's address space, there is a region is reserved for shared objects.  When a new process is created, the process manager first maps the two segments from the executable into memory. It then decodes the program's ELF header. If the program header indicates that the executable was linked against a shared library, the process manager will extract the name of the dynamic interpreter from the program header. The dynamic interpreter points to a shared library that contains the runtime linker code. The process manager will load this shared library in memory and will then pass control to the runtime linker code in this library.
+
+<img src="images/image022.png" /><br />
+Figure 5: Illustration of C’s process memory layout on an x86.
+
+## The Runtime Linker and Shared Library Loading
+
+The runtime linker is invoked when a program that was linked against a shared object is started or when a program requests that a shared object be dynamically loaded. So the resolution of the symbols is done at one of the following time:
+
+1. **Load-time dynamic linking** – the application program is read from the disk (disk file) into memory and unresolved references are located.  The load time loader finds all necessary external symbols and alters all references to each symbol (all previously zeroed) to memory references relative to the beginning of the program.
+
+2. **Run-time dynamic linking** – the application program is read from disk (disk file) into memory and unresolved references are left as invalid (typically zero).  The first access of an invalid, unresolved, reference results in a software trap.  The run-time dynamic linker determines why this trap occurred and seeks the necessary external symbol.  Only this symbol is loaded into memory and linked into the calling program.
+
+The runtime linker is contained within the C runtime library. The runtime linker performs several tasks when loading a **shared library** (.so file).
+
+The dynamic section provides information to the linker about other libraries that this library was linked against. It also gives information about the relocations that need to be applied and the external symbols that need to be resolved. The runtime linker will first load any other required shared libraries (which may themselves reference other shared libraries). It will then process the relocations for each library. Some of these relocations are local to the library, while others require the runtime linker to resolve a global symbol. In the latter case, the runtime linker will search through the list of libraries for this symbol. In ELF files, hash tables are used for the symbol lookup, so they're very fast. Once all relocations have been applied, any initialization functions that have been registered in the shared library's init section are called. This is used in some implementations of C++ to call global constructors.
+
+### Symbol Name Resolution
+
+When the runtime linker loads a shared library, the symbols within that library have to be resolved.  Here, the order and the scope of the symbol resolution are important. If a shared library calls a function that happens to exist by the same name in several libraries that the program has loaded, the order in which these libraries are searched for this symbol is critical. This is why the Operating System defines several options that can be used when loading libraries.
+
+All the objects (executables and libraries) that have global scope are stored on an internal list (the global list). Any global-scope object, by default, makes available all of its symbols to any shared library that gets loaded. The global list initially contains the executable and any libraries that are loaded at the program's startup.
+
+### Dynamic Address Translation
+
+In the view of the memory management, modern OS with multitasking, normally implement dynamic relocation instead of static. All the program layout in the address space is virtually same. This dynamic relocation (in processor term it is called dynamic address translation) provides the illusion that:
+
+1. Each process can use addresses starting at 0, even if other processes are running, or even if the same program is running more than one time.
+
+2. Address spaces are protected.
+
+3. Can fool process further into thinking it has memory that's much larger than available physical memory (virtual memory).
+
+n dynamic relocation the address changed dynamically during every reference. Virtual address is generated by a process (also called logical address) and the physical address is the actual address in physical memory at the run-time. The address translation normally done by **Memory Management Unit** (MMU) that incorporated in the processor itself.
+
+Virtual addresses are relative to the process. Each process believes that its virtual addresses start from 0. The process does not even know where it is located in physical memory; the code executes entirely in terms of virtual addresses.
+
+MMU can refuse to translate virtual addresses that are outside the range of memory for the process for example by generating the segmentation faults. This provides the protection for each process. During translation, one can even move parts of the address space of a process between disk and memory as needed (normally called swapping or paging). This allows the virtual address space of the process to be much larger than the physical memory available to it.
+
+## Further reading and digging
+
+1. [IA-32 and IA-64 Intel® Architecture Software Developer's Manuals/documentation and downloads.][1]
+2. [Another Intel microprocessor resources and download.][2]
+3. [Assembly language tutorial using NASM (Netwide).][3]
+4. [The High Level Assembly (HLA) language.][4]
+5. [Linux based assembly language resources.][5]
+
+[1]: http://www.intel.com/products/processor/manuals/index.htm
+[2]: http://www.x86.org/intel.doc/
+[3]: http://www.drpaulcarter.com/pcasm/
+[4]: http://webster.cs.ucr.edu/
+[5]: http://asm.sourceforge.net/
