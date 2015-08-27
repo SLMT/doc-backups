@@ -260,7 +260,7 @@ For Linux please refer to [Module000](http://www.tenouk.com/Module000.html) and 
 1. Push parameters onto the stack, from right to left.<br />
 	Parameters are pushed onto the stack, one at a time from right to left.  The calling code must keep track of how many bytes of parameters have been pushed onto the stack so that it can clean it up later.
 	```
-	00401078   push        38h ;character 8 is pushed on the stack at [ebp+12]
+	00401078   push        38h   ;character 8 is pushed on the stack at [ebp+12]
 	0040107A   push        7     ;integer 7 is pushed on the stack at [ebp+8]
 	```
 
@@ -309,10 +309,11 @@ For Linux please refer to [Module000](http://www.tenouk.com/Module000.html) and 
 
 7. Perform the function’s task.<br />
 	At this point, the stack frame is set up correctly, and this is illustrated in Figure 8.  All parameters and locals reference are offsets from the EBP register.  In our program there is no operation for the function.  So can start dismantling the function’s stack.
+
 	<img src="images/image033.png" /><br />
 	Figure 8: Stack frame setup.
 
-8. Restore saved registers.
+8. Restore saved registers.<br />
 	After the function’s operation is finished, for each register saved onto the stack upon entry, it must be restored from the stack in reverse order.  If the save and restore phases don’t match exactly, stack will be corrupted.
 	```
 	00401045   pop     edi     ;restore, pop edi register, [ebp-84]
@@ -320,23 +321,23 @@ For Linux please refer to [Module000](http://www.tenouk.com/Module000.html) and 
 	00401047   pop     ebx     ;restore, pop ebx register, [ebp-76]
 	```
 
-9. Restore the old base pointer.
+9. Restore the old base pointer.<br />
 	The first thing this function did upon entry was save the caller’s EBP base pointer, and by restoring  it now (popping the top item from the stack), we effectively discard the entire local stack frame and put the caller’s frame back as in the previous state.
 	```
 	00401048   mov     esp, ebp ;move ebp into esp, [ebp+0]. At this moment
-	                       ;the esp and ebp are pointing at the same address
+	                            ;the esp and ebp are pointing at the same address
 	0040104A   pop     ebp      ;then pop the saved ebp, [ebp+0] so the ebp is
 	                            ;back pointing at the previous stack frame
 	```
 
-10. Return from the function.
+10. Return from the function.<br />
 	This is the last step of the called function, and the RET instruction pops the old saved EIP (return address) from the stack and jumps to that location.  This gives control back to the caller.  Only the stack pointer (EBP) and instruction pointers (EIP) are modified by a subroutine return.
 	```
 	0040104B   ret   ;load the saved eip, the return address: 00401081
 	                 ;into the eip and start executing the instruction, the address is [ebp+4]
 	```
 
-11. Clean up pushed parameters.
+11. Clean up pushed parameters.<br />
 	In the `__cdecl` convention, the caller must clean up the parameters pushed onto the stack, and this is done either by popping the stack into the don’t care registers for the function’s parameters or by adding the parameter-block size to the stack pointer directly.
 	```
 	00401081   add      esp, 8 ;clear the parameters, 8 bytes for integer
@@ -346,3 +347,167 @@ For Linux please refer to [Module000](http://www.tenouk.com/Module000.html) and 
 	```
 
 You can see that from assembly point of view also, when using the stack, it must be symmetrical in the byte count of what is pushed and what is popped. There must be equilibrium before and after the stack construction for functions as discussed before. Obviously, if the stack is not balanced on exit from a function, program execution begins at the wrong address which will almost exclusively crash the program. In most instances, if you push a given data size onto the stack, make sure you must pop the same data size.
+
+## Processor Registers Preservation From Assembly View
+
+When writing assembler code in 32 bit windows, there is a convention for the use of registers so that programmers can interact with windows and API functions in a predictable way.  The registers available with an x86 processor are limited resource that are shared by every process running within the operating system, so a reliable method of using them is important for writing reliable code.
+
+As discussed before, an x86 processor has 8 general purpose integer registers, EAX, EBX, ECX, EDX, ESI, EDI, ESP and EBP.  Two of them, ESP and EBP are almost exclusively used to manage the entry and exit to a function so there are effectively 6 general purpose registers available for application level programming.
+
+The convention used for 32 bit Windows splits the remaining 6 registers where 3 can be freely modified while the other 3 must be preserved. The registers must be preserved are EBX, ESI and EDI.  The remaining 3 are ECX, EDX and EAX and they can be freely modified within the function that is using them.  The typical Windows’s assembly will look like this:
+
+```asm
+...
+push ebx
+push esi
+push edi
+; here should be codes that uses
+; the EBX, ESI and EDI
+;
+
+pop edi
+pop esi
+pop ebx
+ret
+```
+
+When you call a Windows API function, you can assume that the function will also preserve EBX, ESI and EDI but it can also freely modify EAX, ECX and EDX so that if you have any values in these registers that must remain the same after the API call has been made, you must also preserve them as well. In assembly, if your code design requires an API call and you need to use EBX, ESI and EDI, it is efficient coding to use any of EBX, ESI and EDI as counters as you can assume that they are preserved in the API call.  This should reduce the stack overhead of repeatedly saving and restoring registers in loop code.
+
+###  The `__stdcall`
+
+The `__stdcall` convention is mainly used by the Windows API, and it’s more compact than `__cdecl`.  The main difference is that any given function has a hard-coded set of parameters, and this cannot vary from function call to other function call like variadic functions (in C) such as printf().
+
+Because the size of the parameter block is fixed, the burden of cleaning these parameters off the stack can be shifted to the callee, instead of being done by the caller as in `__cdecl`.  The effects of this may include:
+
+1. The code is a little bit smaller, because the parameter-cleanup code is found once that is in the callee function itself rather than in every place the function is called.  These may only a few bytes per call, but for commonly/frequently used functions it can add up.  Smaller code may run faster as well.
+2. Since the number of parameters is known at compile time, calling any function with the wrong number of parameters is a problem.  However, this problem has been overcome by compilers such as encoding the parameter byte count in the decorated name itself as explained before and this means that calling the function with wrong number of parameters (size) will lead to a link error.
+
+## The GCC and C Calling Convention - Standard Stack Frame
+
+Arguments passed to a C function are pushed onto the stack, **right to left**, before the function is called. The first thing the called function does is push the EBP register, and then copy ESP into it. This creates a new data structure normally called the C stack frame.  Simplified example of the steps is given in Table 2.
+
+<table>
+    <tr>
+        <th>Steps</th>
+        <th>32-bit code/platform</th>
+    </tr>
+    <tr>
+        <td>Create standard stack frame, allocate 32 bytes for local variables and buffer, save registers.</td>
+        <td>
+            ```asm
+            push ebp
+            mov  ebp, esp
+            sub  esp, 0x20
+            push edi
+            push esi
+            ...
+            ```
+        </td>
+    </tr>
+    <tr>
+        <td>Restore registers, destroy stack frame, and return.</td>
+        <td>
+            ```asm
+            ...
+            pop esi
+            pop edi
+            mov esp, ebp
+            pop ebp
+            ret
+            ```
+        </td>
+    </tr>
+    <tr>
+        <td>Size of slots in stack frame, that is the stack width.</td>
+        <td>
+            ```asm
+            32 bits
+            ```
+        </td>
+    </tr>
+    <tr>
+        <td>Location of stack frame slots.</td>
+        <td>
+            ```asm
+            ...
+            [ebp + 12]
+            [ebp + 8]
+            [ebp + 4]
+            [ebp + 0]
+            [ebp – 4]
+            ...
+            ```
+        </td>
+    </tr>
+</table>
+Table 2: gcc and C function call.
+
+If an argument passed to a function is wider than the width of the stack slot, it will occupy more than one slot in the stack frame. For example a 64-bit value passed to a function such as long long or double will occupy 2 stack slots in 32-bit code or 4 stack slots in 16-bit code. Then, the function arguments are accessed with **positive offsets** from the EBP registers.  Local variables are accessed with **negative offsets**. The previous value EBP is stored at [ebp + 0].  The return address (EIP) is stored at [ebp + 4].
+
+## The GCC and C Calling Convention - The Return Values
+
+A C function usually stores its return value in one or more registers.  It is summarized in the following table.
+
+<table>
+    <tr>
+        <th>Size</th>
+        <th>32-bit code/platform</th>
+    </tr>
+    <tr>
+        <td>8-bit return value</td>
+        <td>AL</td>
+    </tr>
+    <tr>
+        <td>16-bit return value</td>
+        <td>AX</td>
+    </tr>
+    <tr>
+        <td>32-bit return value</td>
+        <td>EAX</td>
+    </tr>
+    <tr>
+        <td>64-bit return value</td>
+        <td>EDX:EAX</td>
+    </tr>
+    <tr>
+        <td>128-bit return value</td>
+        <td>hidden pointer</td>
+    </tr>
+</table>
+Table 3: C function return value storage.
+
+## The GCC and C Calling Convention - Saving Registers
+
+GCC expects functions to preserve the following callee-save registers:
+
+```
+EBX, EDI, ESI, EBP, DS, ES, SS
+```
+
+You need not save the following registers:
+
+```
+EAX, ECX, EDX, FS, GS, EFLAGS, floating point registers
+```
+
+In some operating systems, FS or GS segment registers may be used as a pointer to thread local storage (TLS), and must be saved if you need to modify it.
+
+## Further reading and digging
+
+1. [Visual studio/C++ .Net.][6]
+2. [Assembly language tutorial using NASM (Netwide).][3]
+3. [The High Level Assembly (HLA) language.][4]
+4. [Linux based assembly language resources.][5]
+5. [gcc][7]
+6. [gdb][8]
+7. [IA-32 and IA-64 Intel® Architecture Software Developer's Manuals/documentation and downloads.][1]
+8. [Another Intel microprocessor resources and download.][2]
+
+[1]: http://www.intel.com/products/processor/manuals/index.htm
+[2]: http://www.x86.org/intel.doc/
+[3]: http://www.drpaulcarter.com/pcasm/
+[4]: http://webster.cs.ucr.edu/
+[5]: http://asm.sourceforge.net/
+[6]: http://msdn.microsoft.com/
+[7]: http://gcc.gnu.org/
+[8]: http://www.gnu.org/software/gdb/gdb.html
