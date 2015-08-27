@@ -382,7 +382,9 @@ Because the size of the parameter block is fixed, the burden of cleaning these p
 1. The code is a little bit smaller, because the parameter-cleanup code is found once that is in the callee function itself rather than in every place the function is called.  These may only a few bytes per call, but for commonly/frequently used functions it can add up.  Smaller code may run faster as well.
 2. Since the number of parameters is known at compile time, calling any function with the wrong number of parameters is a problem.  However, this problem has been overcome by compilers such as encoding the parameter byte count in the decorated name itself as explained before and this means that calling the function with wrong number of parameters (size) will lead to a link error.
 
-## The GCC and C Calling Convention - Standard Stack Frame
+## The GCC and C Calling Convention
+
+### Standard Stack Frame
 
 Arguments passed to a C function are pushed onto the stack, **right to left**, before the function is called. The first thing the called function does is push the EBP register, and then copy ESP into it. This creates a new data structure normally called the C stack frame.  Simplified example of the steps is given in Table 2.
 
@@ -444,7 +446,7 @@ Table 2: gcc and C function call.
 
 If an argument passed to a function is wider than the width of the stack slot, it will occupy more than one slot in the stack frame. For example a 64-bit value passed to a function such as long long or double will occupy 2 stack slots in 32-bit code or 4 stack slots in 16-bit code. Then, the function arguments are accessed with **positive offsets** from the EBP registers.  Local variables are accessed with **negative offsets**. The previous value EBP is stored at [ebp + 0].  The return address (EIP) is stored at [ebp + 4].
 
-## The GCC and C Calling Convention - The Return Values
+### The Return Values
 
 A C function usually stores its return value in one or more registers.  It is summarized in the following table.
 
@@ -476,7 +478,7 @@ A C function usually stores its return value in one or more registers.  It is su
 </table>
 Table 3: C function return value storage.
 
-## The GCC and C Calling Convention - Saving Registers
+### Saving Registers
 
 GCC expects functions to preserve the following callee-save registers:
 
