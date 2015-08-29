@@ -396,49 +396,41 @@ Arguments passed to a C function are pushed onto the stack, **right to left**, b
     <tr>
         <td>Create standard stack frame, allocate 32 bytes for local variables and buffer, save registers.</td>
         <td>
-            ```asm
-            push ebp
-            mov  ebp, esp
-            sub  esp, 0x20
-            push edi
-            push esi
+            push ebp<br />
+            mov  ebp, esp<br />
+            sub  esp, 0x20<br />
+            push edi<br />
+            push esi<br />
             ...
-            ```
         </td>
     </tr>
     <tr>
         <td>Restore registers, destroy stack frame, and return.</td>
         <td>
-            ```asm
-            ...
-            pop esi
-            pop edi
-            mov esp, ebp
-            pop ebp
+            ...<br />
+            pop esi<br />
+            pop edi<br />
+            mov esp, ebp<br />
+            pop ebp<br />
             ret
-            ```
         </td>
     </tr>
     <tr>
         <td>Size of slots in stack frame, that is the stack width.</td>
         <td>
-            ```asm
             32 bits
-            ```
         </td>
     </tr>
     <tr>
         <td>Location of stack frame slots.</td>
         <td>
-            ```asm
+            ...<br />
+            [ebp + 12]<br />
+            [ebp + 8]<br />
+            [ebp + 4]<br />
+            [ebp + 0]<br />
+            [ebp – 4]<br />
             ...
-            [ebp + 12]
-            [ebp + 8]
-            [ebp + 4]
-            [ebp + 0]
-            [ebp – 4]
-            ...
-            ```
         </td>
     </tr>
 </table>
