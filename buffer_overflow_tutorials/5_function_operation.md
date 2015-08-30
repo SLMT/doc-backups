@@ -97,19 +97,19 @@ As an example, Microsoft Visual C++ compiler has three function calling conventi
 		<th>Parameter passing</th>
 	</tr>
 	<tr>
-		<td>`__cdecl`</td>
+		<td>__cdecl</td>
 		<td>caller</td>
-		<td>Pushes parameters on the stack, in reverse order (right to left). Caller cleans up the stack. This is the default calling convention for C language that supports variadic functions (variable number of argument or type list such as printf()) and also C++ programs. The cdecl calling convention creates larger executables than `__stdcall`, because it requires each function call to include **stack cleanup** code.</td>
+		<td>Pushes parameters on the stack, in reverse order (right to left). Caller cleans up the stack. This is the default calling convention for C language that supports variadic functions (variable number of argument or type list such as printf()) and also C++ programs. The cdecl calling convention creates larger executables than __stdcall, because it requires each function call to include **stack cleanup** code.</td>
 	</tr>
 	<tr>
-		<td>`__stdcall`</td>
+		<td>__stdcall</td>
 		<td>callee</td>
-		<td>Also known as `__pascal`. Pushes parameters on the stack, in reverse order (right to left). Functions that use this calling convention require a function prototype.  Callee cleans up the stack. It is standard convention used in Win32 API functions.</td>
+		<td>Also known as __pascal. Pushes parameters on the stack, in reverse order (right to left). Functions that use this calling convention require a function prototype.  Callee cleans up the stack. It is standard convention used in Win32 API functions.</td>
 	</tr>
 	<tr>
-		<td>`__fastcall`</td>
+		<td>__fastcall</td>
 		<td>callee</td>
-		<td>Parameters stored in registers, then pushed on stack.  The `__fastcall` calling convention specifies that arguments to functions are to be passed in registers, when possible. Callee cleans up the stack.</td>
+		<td>Parameters stored in registers, then pushed on stack. The __fastcall calling convention specifies that arguments to functions are to be passed in registers, when possible. Callee cleans up the stack.</td>
 	</tr>
 </table>
 Table 2: Function call convention.
@@ -152,20 +152,20 @@ The following table shows the linker name (decorated names) examples for three c
 		<th>Remarks</th>
 	</tr>
 	<tr>
-		<td>`__cdecl`</td>
-		<td>`_TestFunc`</td>
+		<td>__cdecl</td>
+		<td>_TestFunc</td>
 		<td>?TestFunc@@ZAXXZ</td>
 		<td>The number of parameter does not really matter because the caller is responsible for stack setup and cleanup.</td>
 	</tr>
 	<tr>
-		<td>`__fastcall`</td>
-		<td>`@TestFunc@N`</td>
+		<td>__fastcall</td>
+		<td>@TestFunc@N</td>
 		<td>?TestFunc@@YIXXZ</td>
 		<td>N – The number of bytes of parameters passed to function, 0 if void.</td>
 	</tr>
 	<tr>
-		<td>`__stdcall`</td>
-		<td>`_TestFunc@N`</td>
+		<td>__stdcall</td>
+		<td>_TestFunc@N</td>
 		<td>?TestFunc@@YGXXZ</td>
 		<td>N – The number of bytes of parameters passed to function, 0 if void.</td>
 	</tr>
@@ -180,40 +180,40 @@ extern "C" is used to call a C function from C++ and in another situation extern
 		<th>Decorated name</th>
 	</tr>
 	<tr>
-		<td>`void __cdecl   TestFunc(void);`</td>
-		<td>`_TestFunc`</td>
+		<td>void __cdecl   TestFunc(void);</td>
+		<td>_TestFunc</td>
 	</tr>
 	<tr>
-		<td>`void __cdecl   TestFunc(int x);`</td>
-		<td>`_TestFunc`</td>
+		<td>void __cdecl   TestFunc(int x);</td>
+		<td>_TestFunc</td>
 	</tr>
 	<tr>
-		<td>`void __cdecl   TestFunc(int x, int y);`</td>
-		<td>`_TestFunc`</td>
+		<td>void __cdecl   TestFunc(int x, int y);</td>
+		<td>_TestFunc</td>
 	</tr>
 	<tr>
-		<td>`void __stdcall   TestFunc(void);`</td>
-		<td>`_TestFunc@0`</td>
+		<td>void __stdcall   TestFunc(void);</td>
+		<td>_TestFunc@0</td>
 	</tr>
 	<tr>
-		<td>`void __stdcall   TestFunc(int x);`</td>
-		<td>`_TestFunc@4`</td>
+		<td>void __stdcall   TestFunc(int x);</td>
+		<td>_TestFunc@4</td>
 	</tr>
 	<tr>
-		<td>`void __stdcall   TestFunc(int x, int y);`</td>
-		<td>`_TestFunc@8`</td>
+		<td>void __stdcall   TestFunc(int x, int y);</td>
+		<td>_TestFunc@`</td>
 	</tr>
 	<tr>
-		<td>`void __fastcall   TestFunc(void);`</td>
-		<td>`@TestFunc@0`</td>
+		<td>void __fastcall   TestFunc(void);</td>
+		<td>@TestFunc@0</td>
 	</tr>
 	<tr>
-		<td>`void __ fastcall   TestFunc(int x);`</td>
-		<td>`@TestFunc@4`</td>
+		<td>void __ fastcall   TestFunc(int x);</td>
+		<td>@TestFunc@4</td>
 	</tr>
 	<tr>
-		<td>`void __ fastcall   TestFunc(int x, int y);`</td>
-		<td>`@TestFunc@8`</td>
+		<td>void __ fastcall   TestFunc(int x, int y)`</td>
+		<td>@TestFunc@8</td>
 	</tr>
 </table>
 Table 4: Function prototype and its decorated name.
@@ -249,7 +249,7 @@ Other than using the calling conventions explicitly in the program source code, 
 	</tr>
 	<tr>
 		<td>ESP – Stack Pointer</td>
-		<td>The 32-bit register that implicitly used by several processor instructions such as PUSH, POP, CALL and RET.  It always points to the last element, an occupied location on the stack.</td>
+		<td>The 32-bit register that implicitly used by several processor instructions such as PUSH, POP, CALL and RET. It always points to the last element, an occupied location on the stack.</td>
 	</tr>
 	<tr>
 		<td>EBP – Base Pointer</td>
