@@ -402,3 +402,192 @@ Extract the shellcode; rearrange the hex in char string format.  And each set of
 \xeb\x12\x5b\x31\xc0\x89\x43\x01\xb8\x01\x00\x00\x00\xbb\x00\x00\x00\x00\xcd
 \x80\xe8\xe9\xff\xff\xff\x58
 ```
+
+### Eliminating the NULL Bytes
+
+Unfortunately in our shellcode, there are NULL bytes and operand. Placing small values into larger registers is the most common error which produced NULL bytes in shellcode programming. In this example we move the 8 bits value $1 (a byte) into the 32-bit %eax register. This will cause our shellcode to produce three NULL bytes. It is better always use the smallest register when inserting or moving a value in shell coding.  For NULL bytes, we can easily remove them by taking an 8-bit register instead of 32 bits. So replace the %eax to %al, change the mov to movb.
+
+```asm
+######testshell.s#######
+#assembly code for exit() system call, AT&T/Linux
+
+.section .data
+.section .text
+
+.globl _start
+
+    jmp dummy
+
+_start:
+
+    popl %ebx            #gets the "X" address
+    xor %eax, %eax       #clear the eax register
+    movb %al, 0x01(%ebx) #move NULL to the end of the "X"
+    movb $1, %al         #move 1 into %eax
+    mov $0, %ebx         #move 0 into %ebx
+    int $0x80            #interupt 0x80
+dummy:
+    call _start
+    .string "X"
+```
+
+Again, compile and disassemble it.
+
+```
+[bodo@bakawali testbed7]$ as testshell.s -o testshell.o
+[bodo@bakawali testbed7]$ ld testshell.o -o testshell
+[bodo@bakawali testbed7]$ objdump -d testshell
+
+
+testshell:     file format elf32-i386
+
+Disassembly of section .text:
+
+08048074 <_start-0x2>:
+ 8048074:       eb 0f               jmp         8048085 <dummy>
+
+08048076 <_start>:
+ 8048076:       5b                  pop         %ebx
+ 8048077:       31 c0               xor         %eax, %eax
+ 8048079:       88 43 01            mov         %al, 0x1(%ebx)
+ 804807c:       b0 01               mov         $0x1, %al
+ 804807e:       bb 00 00 00 00      mov         $0x0, %ebx
+ 8048083:       cd 80               int         $0x80
+
+08048085 <dummy>:
+ 8048085:       e8 ec ff ff ff      call        8048076 <_start>
+ 804808a:       58                  pop         %eax
+        ...
+```
+
+Rearrange the shellcode.
+
+```
+\xeb\x0f\x5b\x31\xc0\x88\x43\x01\xb0\x01\xbb\x00\x00\x00\x00\xcd\x80\xe8\xec\xff\xff\xff\x58
+```
+
+Well, we still have NULL bytes here. It is caused by the mov operand. When we want the ebx to represent a 0 value instead of NULL we can exclusive ORing the same register as shown below:
+
+```asm
+xor %ebx, %ebx
+```
+
+And the result will be empty %eax instead of NULL.  Keep in mind that 0 and NULL values mean differently. Let replace the `mov $0x0, %ebx` to `xor %ebx, %ebx`.
+
+```
+######testshell.s#######
+#assembly code for exit() system call, AT&T/Linux
+
+.section .data
+.section .text
+
+.globl _start
+
+    jmp dummy
+
+_start:
+
+    popl %ebx            #gets the "X" address
+    xor %eax, %eax       #clear the eax register
+    movb %al, 0x01(%ebx) #move NULL to the end of the "X"
+    movb $1, %al         #move 1 into %eax
+    xor %ebx, %ebx       #move 0 into %ebx
+    int $0x80            #interupt 0x80
+dummy:
+    call _start
+    .string "X"
+```
+
+Recompile and re-link.  Disassemble the program.
+
+```
+[bodo@bakawali testbed7]$ ld testshell.o -o testshell
+[bodo@bakawali testbed7]$ objdump -d testshell
+
+testshell:     file format elf32-i386
+
+Disassembly of section .text:
+
+08048074 <_start-0x2>:
+ 8048074:       eb 0c               jmp         8048082 <dummy>
+
+08048076 <_start>:
+ 8048076:       5b                  pop         %ebx
+ 8048077:       31 c0               xor         %eax, %eax
+ 8048079:       88 43 01            mov         %al, 0x1(%ebx)
+ 804807c:       b0 01               mov         $0x1, %al
+ 804807e:       31 db               xor         %ebx, %ebx
+ 8048080:       cd 80               int         $0x80
+
+08048082 <dummy>:
+ 8048082:       e8 ef ff ff ff      call        8048076 <_start>
+ 8048087:       58                  pop         %eax
+        ...
+```
+
+Rearrange the shellcode.
+
+```
+\xeb\x0c\x5b\x31\xc0\x88\x43\x01\xb0\x01\x31\xdb\xcd\x80\xe8\xef\xff\xff\xff\x58
+```
+
+Now we don’t have NULL byte anymore.  So let test our shellcode.
+
+```c
+/*test.c*/
+#include <unistd.h>
+
+char testshcode[ ]="\xeb\x0c\x5b\x31\xc0\x88\x43\x01\xb0\x01\x31"
+                   "\xdb\xcd\x80\xe8\xef\xff\xff\xff\x58";
+
+int main(int argc, char *argv[])
+{
+    /*function pointer*/
+    int (*funct)();
+    funct = (int(*)())testshcode;
+    (int)(*funct)();
+    return 0;
+}
+```
+
+Compile and run the program.
+
+```
+[bodo@bakawali testbed7]$ gcc -g test.c -o test
+[bodo@bakawali testbed7]$ execstack -s test
+[bodo@bakawali testbed7]$ ./test
+[bodo@bakawali testbed7]$ echo $?
+0
+```
+
+Well, it works. For exit(1), change the following assembly code:
+
+```
+xor  %ebx, %ebx
+```
+
+To
+
+```
+movb $1, %bl
+```
+
+Recompile and re-link the assembly program. Disassemble it, only three bytes change. The following is the shellcode.
+
+```
+\xeb\x0c\x5b\x31\xc0\x88\x43\x01\xb0\x01\xb3\x01\xcd\x80\xe8\xef\xff\xff\xff\x58
+```
+
+Then replace the shellcode in the test.c program. Recompile and rerun the program.
+
+```
+[bodo@bakawali testbed7]$ gcc -g test.c -o test
+[bodo@bakawali testbed7]$ execstack -s test
+[bodo@bakawali testbed7]$ ./test
+[bodo@bakawali testbed7]$ echo $?
+1
+```
+
+Well, we have verified that our shellcode is functioning and you can see that a shellcode is a group of instructions which can be executed while another program is running.
+
+Fortunately, there are sites that provide readily available shellcodes for various types of exploits and platforms. There are also programs that can be used to generate shellcodes that suit to our need. So don’t mess up yourself! Check out the links at the end of this Module.
