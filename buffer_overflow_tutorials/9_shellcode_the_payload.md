@@ -591,3 +591,86 @@ Then replace the shellcode in the test.c program. Recompile and rerun the progra
 Well, we have verified that our shellcode is functioning and you can see that a shellcode is a group of instructions which can be executed while another program is running.
 
 Fortunately, there are sites that provide readily available shellcodes for various types of exploits and platforms. There are also programs that can be used to generate shellcodes that suit to our need. So don’t mess up yourself! Check out the links at the end of this Module.
+
+## More Advanced Techniques
+
+In the real situations, network system has many detection and filtering modules or devices such as firewall, anti-virus and IDS. Most of the basic shellcodes construct will fail when going through these systems. But the shellcodes development not static as well. In this section we will try to review some of the advanced techniques used in the development of the shellcodes in order to evade various normalization and signature based security systems that they encounter along the path to the target application and make the codes stealthy. These techniques include:
+
+1. Utilizing readily available system resources.
+2. Alphanumeric shellcode.
+3. Encrypt the shellcode.
+4. Polymorphic shellcodes.
+5. Metamorphic shellcode.
+
+### Utilizing System Resources
+
+Exploits may fully utilize the resources provided by the target to fully mimic the normal application behavior. For example the exploit may use the targets protocol support and added features to disguise their payloads, including encoding, compression, and encryption. If the target supports any transport compression for example, the payload may be compressed in the stream and decompressed by the server before the vulnerable condition is triggered. The exploit examples include file format vulnerabilities and media-based protocols server vulnerabilities. Many protocol server implementations offer encoding schemes to support data types that require more than the real data. Simple authorization mechanisms that do not use encryption will most likely use simple encoding schemes such as **Unicode** (UTF) and **Base64**. If the target offers any form of encryption, the payload may also use that medium instead of the clear text transport medium, and will most likely sneak by the majority of IDS systems such as file format vulnerabilities. The most widely used may be the social engineering techniques that send an encrypted and compressed exploit as an email attachment1which the email itself looks perfectly legitimate.
+
+### Alphanumeric
+
+This method can be used to create exploit code using only **printable ASCII characters**. In general an alphanumeric code is a series of letters and numbers (hence the name) which are written in a form understandable and processable by a computer. For example, one such alphanumeric code is ASCII. More specifically, in an exploit code terminology alphanumeric code is machine code that is written so that it assembles into entirely readable ASCII-letters such as "a"-"z", "A"-"Z", "1"-"9", "#", "!", "@", and so on. This is possible to do with a very good understanding of the assembly language for the specific computer platform that the code is intended for. This code is used in shellcodes with the intent of fooling applications, such as Web forms, into accepting valid and legal code used for exploit.
+
+### Encryption
+
+In cryptography, encryption is the process of obscuring information to make it unreadable without certain knowledge of how to decrypt. While encryption has been used to protect communications for centuries, only organizations and individuals with an extraordinary need for secrecy have made use of it. In the mid-1970s, strong encryption emerged from the sole preserve of secretive government agencies into the public domain, and is now employed in protecting widely-used systems, such as Internet e-commerce, mobile telephone networks and bank Automatic Teller Machines data communication.  Nowadays a common use of the encryption protocols are **ssl** and **ssh**. Another consideration is protection against traffic analysis.
+
+In exploit world the encryption provided by **encoder**, in simplest form it tries to eliminate NULLs and other user-defined characters out of shellcode. It most basic algorithm uses a simple XOR and includes a built-in decoder routine. It is usually possible to remove NULL characters in the first place by using the right register size as explained before but it is not always the case when we consider other characters available in standard character sets such as ASCII, EBCDIC and Unicode (and their variant). There may be a need to hide some characters, maybe to avoid signature based recognition or something like that. And finally, encoding the shellcode obscures all clear-text in the shellcode nicely.
+
+### Polymorphic
+
+In computer terminology, polymorphic code is code that mutates while keeping the original algorithm intact. It is self-modifying codes. Historically, polymorphic code was invented in 1992 by the Bulgarian cracker Dark Avenger (a pseudonym) as a means of avoiding pattern recognition from antivirus-software.
+
+This technique is sometimes used by computer viruses, shellcodes and computer worms to hide their presence. Most anti virus-software and intrusion detection systems attempt to locate malicious code by searching through computer files and data packets sent over a computer network. If the security software finds patterns that correspond to known computer viruses, worms or exploit codes, it takes appropriate steps to neutralize the threat. Polymorphic algorithms make it difficult for such software to locate the offending code as it constantly **mutates**.
+
+Encryption is the most commonly used method of achieving polymorphism in code. However, not all of the code can be encrypted as it would be completely unusable. A small portion of it is left unencrypted and used to jumpstart the encrypted software. Anti-virus software targets this small unencrypted portion of code.
+
+Malicious programmers have sought to protect their polymorphic code from this strategy by rewriting the unencrypted decryption engine each time the virus or worm is propagated. Sophisticated pattern analysis is used by anti-virus software to find underlying patterns within the different mutations of the decryption engine in hopes of reliably detecting such malware. As an example, ADMutate program was released by Ktwo. [ADMutate](http://www.ktwo.ca/security.html) designed to defeat IDS signature checking by altering the appearance of buffer overflow exploits. This technique actually borrowed from virus writers. The mutation engine contains the following components:
+
+1. NOP substituted is with operationally inert commands.  For example, Intel Architecture has more than 50 [NOP equivalent instructions](http://www.tenouk.com/Bufferoverflowc/NOPequivalentinstructions.txt).
+2. Shell code is encoded by XORing with a randomly generated key.
+3. Return address is modulated. Least significant byte altered to jump into different parts of NOPs.
+
+And the decode Engine:
+
+1. Need to decode the XOR’ed shellcode.
+2. Engine is also polymorphic that is by varying the assembly instructions to accomplish the same results in different ways and out of order decoding to vary the signature even more.
+
+### Metamorphic code
+
+This is a more powerful and technically skillful level of polymorphism. In computer virus terms, metamorphic code is a code that can reprogram itself. Often, it does this by translating its own code into a temporary pseudo-code, and then back to normal code again. This is used by some viruses when they are about to infect new files, and the result is that their "children" or "clone" will never look like them selves. The computer viruses that use this technique do this in order to avoid the pattern recognition of the anti virus-software where the actual algorithm does not change but everything else might.
+
+Metamorphic code is more effective than polymorphic code. This is because most anti virus-software will try to search for known virus-code even during the execution of the code. Metamorphic code can also mean that a virus is capable of infecting executables from two or more different operating systems (such as Windows and Linux) or even different computer architectures. Often, the virus does this by carrying several viruses with itself, so it is really a matter of several viruses that has been 'combined' together into a "supervirus".  Similar to the polymorphic, metamorphic also use encoder and decoder. Worms and virii have used morphing engines for decades to evade signature based Anti Virus systems. This same techniques used in exploit codes that can be used to evade other simple signature-based security systems, such as Intrusion Detection Systems.
+
+## Further reading and digging
+
+- [metasploit.com][1] : Contains x86 and non-x86 shellcode samples and an online interface for automatic shellcode generation and encoding. Quite comprehensive information.
+- [shellcode.org][2] : Contains x86 and non-x86 shellcode samples.
+- [shellcode.com.ar][3] : An introduction to shellcode development. Browse the domain for more information including polymorphic shellcodes.
+- [shellcode.com.ar][4] : Shellcode collection.
+- [packetstorm.linuxsecurity.com][5] : Another shellcode collection and tools.
+- [l0t3k.org][6] : Shellcode documentations link resources.
+- [vividmachine.com][7] : Linux and Windows shellcodes example.
+- [www.infosecwriters.com][8] : A Linux/xBSD shellcode development.
+- [www.hick.org][9] : Windows shellcode, from basic to advanced – pdf document.
+- [www.orkspace.net][10] : Shellcode library and shellcode generator.
+- Phrack : [The classic buffer overflow by Aleph One's][11].
+- Phrack : [Writing ia32 alphanumeric shellcodes][12] : by rix.
+- Phrack : [IA64 Shellcode][13].
+- Phrack : [Building IA32 'Unicode-Proof' Shellcodes][14] : by obscou.
+- Tenouk's favorite [security portal][15].
+
+[1]: http://www.metasploit.com/
+[2]: http://www.shellcode.org/
+[3]: http://www.shellcode.com.ar/docz/bof/Writing_shellcode.html
+[4]: http://www.shellcode.com.ar/en/shellcodes.html
+[5]: http://packetstorm.linuxsecurity.com/shellcode/
+[6]: http://www.l0t3k.org/programming/docs/shellcode/
+[7]: http://www.vividmachines.com/shellcode/shellcode.html
+[8]: http://www.infosecwriters.com/hhworld/shellcode.txt
+[9]: http://www.hick.org/code/skape/papers/win32-shellcode.pdf
+[10]: http://www.orkspace.net/software/libShellCode/index.php
+[11]: http://www.phrack.org/issues.html?issue=49&id=14#article
+[12]: http://www.phrack.org/issues.html?issue=57&id=15#article
+[13]: http://www.phrack.org/issues.html?issue=57&id=5#article
+[14]: http://www.phrack.org/issues.html?issue=61&id=11#article
+[15]: http://www.infosyssec.com/
